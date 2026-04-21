@@ -53,6 +53,11 @@ from ..quest import QuestService
 from ..memory.frontmatter import dump_markdown_document, load_markdown_document
 from .arxiv import fetch_arxiv_metadata, read_arxiv_content
 from .charts import render_main_experiment_metric_timeline_chart
+from .audit import (
+    is_audit_report,
+    maybe_inject_audit_override,
+    validate_audit_report_payload,
+)
 from .guidance import build_guidance_for_record, guidance_summary
 from .metrics import (
     baseline_metric_lines,
@@ -6798,6 +6803,16 @@ class ArtifactService:
                 "warnings": [],
             }
 
+        # Objective post-check for audit-report payloads: re-verify every claim
+        # against its cited source file before anything downstream observes the
+        # audit_verdict. This prevents a hallucinating audit subprocess from
+        # self-confirming a fabricated "pass".
+        if is_audit_report(payload):
+            try:
+                validate_audit_report_payload(quest_root, payload)
+            except Exception:
+                pass
+
         write_root = self._workspace_root_for(quest_root, workspace_root)
         semantic_key = self._semantic_record_key(quest_root, payload, workspace_root=write_root)
         suppress_equivalent = (
@@ -6840,6 +6855,14 @@ class ArtifactService:
         if semantic_key:
             record["semantic_key"] = semantic_key
         guidance_vm = build_guidance_for_record(record)
+        # Post-run advisory audit: when the quest's audit_policy matches this
+        # just-built artifact, divert guidance to the `audit-numbers` companion
+        # skill so a fresh subprocess verifies the numeric claims before the
+        # originally recommended skill runs.
+        try:
+            guidance_vm = maybe_inject_audit_override(quest_root, record, guidance_vm)
+        except Exception:
+            pass
         record["guidance_vm"] = guidance_vm
         guidance_text = guidance_summary(guidance_vm) or guidance_for_kind(record["kind"])
         recommended_skill = (

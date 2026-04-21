@@ -190,6 +190,7 @@ START_SETUP_FORM_FIELDS: tuple[str, ...] = (
     "review_followup_policy",
     "baseline_execution_policy",
     "manuscript_edit_mode",
+    "audit_policy",
     "entry_state_summary",
     "review_summary",
     "review_materials",
@@ -373,6 +374,11 @@ def _sanitize_start_setup_form_patch(form_patch: dict[str, Any] | None) -> dict[
             continue
         if key == "need_research_paper":
             patch[key] = _coerce_prepare_bool(value, field_name=key)
+            continue
+        if key == "audit_policy":
+            from ..artifact.audit import coerce_audit_policy
+
+            patch[key] = coerce_audit_policy(value, field_name=key)
             continue
         if isinstance(value, (str, int, float, bool)):
             patch[key] = str(value).strip() if not isinstance(value, bool) else value

@@ -104,6 +104,109 @@ def guidance_summary(guidance: dict[str, Any] | None) -> str:
     return "Continue from the latest durable quest state."
 
 
+def _audit_report_guidance(
+    record: dict[str, Any],
+    artifact_id: str | None,
+    related_paths: list[Any],
+) -> dict[str, Any]:
+    verdict = str(record.get("audit_verdict") or "").strip().lower()
+    pre_skill = str(record.get("pre_audit_recommended_skill") or "").strip() or None
+    pre_action = str(record.get("pre_audit_recommended_action") or "").strip() or None
+    fail_skill = str(record.get("fail_recommended_skill") or "").strip() or None
+    audit_target = record.get("audit_target") if isinstance(record.get("audit_target"), dict) else {}
+    target_id = str(audit_target.get("artifact_id") or "").strip() or None
+    trigger_label = str(audit_target.get("trigger_label") or "").strip() or None
+    diagnostics = record.get("validator_diagnostics") if isinstance(record.get("validator_diagnostics"), dict) else {}
+    mismatch_count = int(diagnostics.get("mismatch_count") or 0)
+    io_error_count = int(diagnostics.get("io_error_count") or 0)
+    checked = int(diagnostics.get("checked_claim_count") or 0)
+    if verdict == "pass":
+        next_skill = pre_skill or "decision"
+        next_action = pre_action or "continue"
+        return _guidance(
+            current_anchor="audit",
+            recommended_skill=next_skill,
+            recommended_action=next_action,
+            summary=(
+                f"Audit passed ({checked} claim(s) verified against source files). "
+                f"Continue to `{next_skill}` as originally planned."
+            ),
+            why_now=(
+                "The fresh-context numeric audit re-checked every quantitative claim in the "
+                f"target artifact{(' `' + target_id + '`') if target_id else ''} and the Python "
+                "validator confirmed each one. Route the quest back onto the pre-audit track."
+            ),
+            complete_when=[
+                f"The `{next_skill}` skill produces its first durable output for the quest.",
+            ],
+            suggested_artifact_calls=[
+                _artifact_call(
+                    "artifact.record(...)",
+                    f"Persist the first durable output of `{next_skill}` after the audit pass.",
+                ),
+            ],
+            source_artifact_kind="report",
+            source_artifact_id=artifact_id,
+            related_paths=[str(path) for path in related_paths],
+            stage_status="audit_pass",
+        )
+    # audit failed or inconclusive
+    remediation_skill = fail_skill or _fail_skill_for_label(trigger_label)
+    reason_bits: list[str] = []
+    if mismatch_count:
+        reason_bits.append(f"{mismatch_count} numeric mismatch(es)")
+    if io_error_count:
+        reason_bits.append(f"{io_error_count} unresolved source reference(s)")
+    if not reason_bits:
+        reason_bits.append("the audit was inconclusive")
+    reason_text = " and ".join(reason_bits)
+    return _guidance(
+        current_anchor="audit",
+        recommended_skill=remediation_skill,
+        recommended_action="revise",
+        summary=(
+            f"Audit failed: {reason_text}. Route back to `{remediation_skill}` to correct the "
+            f"underlying artifact before continuing."
+        ),
+        why_now=(
+            "The Python validator found discrepancies between the audited artifact's quantitative "
+            "claims and the actual source files. Proceeding on the pre-audit route would propagate "
+            "those errors into downstream outputs."
+        ),
+        complete_when=[
+            "The remediation skill reconciles every flagged claim against its actual source file.",
+            "A new state-changing tool runs on the corrected artifact; a new audit will be scheduled.",
+        ],
+        alternative_routes=[
+            _route(
+                "decision",
+                "Escalate via decision",
+                "The audit failure requires a scope or claim change rather than a mechanical fix.",
+                "Keeps the quest honest, but may force an unplanned downgrade.",
+            ),
+        ],
+        suggested_artifact_calls=[
+            _artifact_call(
+                f"artifact.record(kind='report', ...)",
+                "Summarize how the artifact will be corrected before rerunning the trigger tool.",
+            ),
+        ],
+        source_artifact_kind="report",
+        source_artifact_id=artifact_id,
+        related_paths=[str(path) for path in related_paths],
+        stage_status="audit_fail",
+    )
+
+
+def _fail_skill_for_label(trigger_label: str | None) -> str:
+    mapping = {
+        "paper_bundle": "write",
+        "main_experiment": "decision",
+        "baseline_confirm": "baseline",
+    }
+    return mapping.get(str(trigger_label or "").strip(), "decision")
+
+
 def build_guidance_for_record(record: dict[str, Any]) -> dict[str, Any]:
     kind = str(record.get("kind") or "").strip().lower()
     anchor = _normalize_anchor(record.get("run_kind") or record.get("stage") or kind)
@@ -542,6 +645,9 @@ def build_guidance_for_record(record: dict[str, Any]) -> dict[str, Any]:
         )
 
     if kind == "report":
+        report_type = str(record.get("report_type") or "").strip().lower()
+        if report_type == "audit_report":
+            return _audit_report_guidance(record, artifact_id, related_paths)
         stage = _normalize_anchor(record.get("stage") or record.get("source_stage"))
         if stage in {"write", "finalize"}:
             return _guidance(

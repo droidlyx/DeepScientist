@@ -44,6 +44,16 @@ export type BaselineExecutionPolicy =
   | 'skip_unless_blocking'
 export type ManuscriptEditMode = 'none' | 'copy_ready_text' | 'latex_required'
 
+export type AuditPolicyMode = 'off' | 'advisory'
+export type AuditPolicyRunner = 'inherit' | 'codex' | 'claude' | 'opencode' | 'kimi'
+export type AuditPolicy = {
+  mode: AuditPolicyMode
+  triggers?: ReadonlyArray<
+    'submit_paper_bundle' | 'record_main_experiment' | 'confirm_baseline'
+  >
+  runner?: AuditPolicyRunner
+}
+
 export type StartResearchTemplate = {
   title: string
   quest_id: string
@@ -66,6 +76,7 @@ export type StartResearchTemplate = {
   review_followup_policy: ReviewFollowupPolicy
   baseline_execution_policy: BaselineExecutionPolicy
   manuscript_edit_mode: ManuscriptEditMode
+  audit_policy: AuditPolicy
   entry_state_summary: string
   review_summary: string
   review_materials: string
@@ -189,6 +200,7 @@ export function defaultStartResearchTemplate(language: 'en' | 'zh'): StartResear
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    audit_policy: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -311,6 +323,7 @@ export function listReferenceStartResearchTemplates(): StartResearchTemplateEntr
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    audit_policy: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -364,6 +377,7 @@ export function listReferenceStartResearchTemplates(): StartResearchTemplateEntr
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    audit_policy: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -529,6 +543,46 @@ function sanitizeManuscriptEditMode(value: unknown): ManuscriptEditMode {
   return 'none'
 }
 
+const AUDIT_POLICY_TRIGGERS = [
+  'submit_paper_bundle',
+  'record_main_experiment',
+  'confirm_baseline',
+] as const satisfies ReadonlyArray<NonNullable<AuditPolicy['triggers']>[number]>
+
+const AUDIT_POLICY_RUNNERS: ReadonlyArray<AuditPolicyRunner> = [
+  'inherit',
+  'codex',
+  'claude',
+  'opencode',
+  'kimi',
+]
+
+export function sanitizeAuditPolicy(value: unknown): AuditPolicy {
+  const raw = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const modeRaw = String(raw.mode || '').trim().toLowerCase()
+  const mode: AuditPolicyMode = modeRaw === 'advisory' ? 'advisory' : 'off'
+  const out: AuditPolicy = { mode }
+  if (mode === 'off') {
+    return out
+  }
+  const triggersRaw = Array.isArray(raw.triggers) ? raw.triggers : null
+  if (triggersRaw) {
+    const triggers = triggersRaw
+      .map((item) => String(item || '').trim())
+      .filter((item): item is (typeof AUDIT_POLICY_TRIGGERS)[number] =>
+        (AUDIT_POLICY_TRIGGERS as ReadonlyArray<string>).includes(item),
+      )
+    if (triggers.length > 0) {
+      out.triggers = triggers
+    }
+  }
+  const runnerRaw = String(raw.runner || '').trim().toLowerCase()
+  if ((AUDIT_POLICY_RUNNERS as ReadonlyArray<string>).includes(runnerRaw)) {
+    out.runner = runnerRaw as AuditPolicyRunner
+  }
+  return out
+}
+
 function sanitizeLines(text: string) {
   return text
     .split('\n')
@@ -590,6 +644,7 @@ function sanitizeTemplate(input: PersistedStartResearchTemplate): StartResearchT
     review_followup_policy: sanitizeReviewFollowupPolicy(input.review_followup_policy),
     baseline_execution_policy: sanitizeBaselineExecutionPolicy(input.baseline_execution_policy),
     manuscript_edit_mode: sanitizeManuscriptEditMode(input.manuscript_edit_mode),
+    audit_policy: sanitizeAuditPolicy(input.audit_policy),
     entry_state_summary: String(input.entry_state_summary || '').trim(),
     review_summary: String(input.review_summary || '').trim(),
     review_materials: String(input.review_materials || '').trim(),

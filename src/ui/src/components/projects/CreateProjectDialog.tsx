@@ -233,6 +233,13 @@ const copy = {
     researchPaperEnabledBody: 'Keep paper-oriented analysis and writing in scope. A strong run alone is not the endpoint.',
     researchPaperDisabled: 'Algorithm-first mode',
     researchPaperDisabledBody: 'Skip default paper drafting and keep iterating toward the strongest justified method.',
+    auditPolicyLabel: 'Post-run numeric audit',
+    auditPolicyHelp:
+      'Default off. When enabled, after each record_main_experiment, submit_paper_bundle, or confirm_baseline the runtime launches a fresh-context `audit-numbers` subprocess to verify every numeric claim against its cited source files before continuing.',
+    auditPolicyEnabled: 'Audit on (advisory)',
+    auditPolicyEnabledBody: 'Route through audit-numbers after main experiment / paper bundle / baseline confirm. Audit failures are reported as advisory guidance and do not block the tool call.',
+    auditPolicyDisabled: 'Audit off',
+    auditPolicyDisabledBody: 'Do not schedule post-run numeric audits. Use this if the project is exploratory or the extra subprocess cost is not warranted.',
     deliveryModeLabel: 'Delivery mode',
     languageLabel: 'User language',
     languageHelp: 'The launch instructions and later communication will prefer this language by default.',
@@ -622,6 +629,13 @@ const copy = {
     researchPaperEnabledBody: '保持论文导向的分析与写作流程。单次较强实验结果本身不构成终点。',
     researchPaperDisabled: '仅追求最佳算法',
     researchPaperDisabledBody: '默认不进入论文写作，重点持续迭代并追求更强、证据更扎实的方法结果。',
+    auditPolicyLabel: '事后数字审计',
+    auditPolicyHelp:
+      '默认关闭。开启后，每次 record_main_experiment / submit_paper_bundle / confirm_baseline 之后，系统会在全新上下文子进程里调用 `audit-numbers` 技能，按来源文件逐项核对数字声明，然后再继续原路线。',
+    auditPolicyEnabled: '已开启（建议模式）',
+    auditPolicyEnabledBody: '主实验落盘 / 论文打包 / 基线确认时触发 audit-numbers 空上下文审计。审计失败会作为建议性路由反馈，不会阻塞工具调用本身。',
+    auditPolicyDisabled: '未开启',
+    auditPolicyDisabledBody: '不调度事后数字审计。适合探索性课题或对额外子进程开销敏感的场景。',
     deliveryModeLabel: '交付模式',
     languageLabel: '用户语言',
     languageHelp: '默认希望启动说明和后续交流优先使用的语言。',
@@ -1420,6 +1434,7 @@ function buildTutorialStartResearchExample(language: 'en' | 'zh'): Partial<Start
       review_followup_policy: 'audit_only',
       baseline_execution_policy: 'auto',
       manuscript_edit_mode: 'none',
+      audit_policy: { mode: 'off' },
       entry_state_summary: '',
       review_summary: '',
       review_materials: '',
@@ -1461,6 +1476,7 @@ function buildTutorialStartResearchExample(language: 'en' | 'zh'): Partial<Start
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    audit_policy: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -2464,6 +2480,7 @@ export function CreateProjectDialog({
       review_followup_policy: next.review_followup_policy,
       baseline_execution_policy: next.baseline_execution_policy,
       manuscript_edit_mode: next.manuscript_edit_mode,
+      audit_policy: next.audit_policy,
       entry_state_summary: next.entry_state_summary,
       review_summary: next.review_summary,
       review_materials: next.review_materials,
@@ -2550,6 +2567,7 @@ export function CreateProjectDialog({
       execution_start_mode: saved.execution_start_mode,
       baseline_acceptance_target: saved.baseline_acceptance_target,
       manuscript_edit_mode: effectiveManuscriptEditMode,
+      ...(saved.audit_policy?.mode === 'advisory' ? { audit_policy: saved.audit_policy } : {}),
       scope: derivedFields.scope,
       baseline_mode: derivedFields.baseline_mode,
       resource_policy: derivedFields.resource_policy,
@@ -3040,6 +3058,29 @@ export function CreateProjectDialog({
                     </div>
                   </InlineField>
                 ) : null}
+                <InlineField label={t.auditPolicyLabel} help={t.auditPolicyHelp} hint={t.auditPolicyHelp}>
+                  <div className="rounded-[14px] border border-[rgba(45,42,38,0.08)] bg-white/70 px-3 py-3 dark:border-[rgba(45,42,38,0.08)] dark:bg-white/76">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-[rgba(38,36,33,0.95)] dark:text-[rgba(38,36,33,0.95)]">
+                          {form.audit_policy.mode === 'advisory' ? t.auditPolicyEnabled : t.auditPolicyDisabled}
+                        </div>
+                        <div className="mt-1 text-[11px] leading-5 text-[rgba(86,82,77,0.82)] dark:text-[rgba(86,82,77,0.82)]">
+                          {form.audit_policy.mode === 'advisory' ? t.auditPolicyEnabledBody : t.auditPolicyDisabledBody}
+                        </div>
+                      </div>
+                      <AnimatedCheckbox
+                        checked={form.audit_policy.mode === 'advisory'}
+                        onChange={(checked) =>
+                          setField('audit_policy', checked ? { mode: 'advisory' } : { mode: 'off' })
+                        }
+                        disabled={manualOverride}
+                        size="md"
+                        className="shrink-0"
+                      />
+                    </div>
+                  </div>
+                </InlineField>
                 <div className="rounded-[14px] border border-[rgba(45,42,38,0.08)] bg-[rgba(244,239,233,0.52)] px-3 py-3 dark:border-[rgba(45,42,38,0.08)] dark:bg-[rgba(244,239,233,0.62)]">
                   <div className="text-[11px] font-medium text-[rgba(75,73,69,0.78)] dark:text-[rgba(75,73,69,0.78)]">
                     {t.derivedPolicyTitle}

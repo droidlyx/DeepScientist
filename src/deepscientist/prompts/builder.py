@@ -60,6 +60,10 @@ STAGE_MEMORY_PLAN = {
         "quest": ("decisions", "knowledge", "episodes", "ideas"),
         "global": ("knowledge", "templates"),
     },
+    "audit-numbers": {
+        "quest": ("decisions", "knowledge", "episodes"),
+        "global": ("knowledge", "templates"),
+    },
 }
 
 

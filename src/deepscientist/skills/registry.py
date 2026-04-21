@@ -24,6 +24,7 @@ _DEFAULT_COMPANION_SKILLS = (
     "intake-audit",
     "review",
     "rebuttal",
+    "audit-numbers",
 )
 
 _SKILL_ROLE_FALLBACK_ORDER = {
