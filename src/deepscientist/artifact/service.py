@@ -6840,6 +6840,18 @@ class ArtifactService:
         if semantic_key:
             record["semantic_key"] = semantic_key
         guidance_vm = build_guidance_for_record(record)
+        # Careful-mode regression routing: when the quest opted into
+        # careful_mode and the agent itself flagged this main run as
+        # refuted, route through `analysis-campaign` for one root-cause
+        # pass before the next full run is launched.
+        try:
+            from .careful_mode import maybe_inject_careful_mode_regression_routing
+
+            guidance_vm = maybe_inject_careful_mode_regression_routing(
+                quest_root, record, guidance_vm
+            )
+        except Exception:
+            pass
         record["guidance_vm"] = guidance_vm
         guidance_text = guidance_summary(guidance_vm) or guidance_for_kind(record["kind"])
         recommended_skill = (

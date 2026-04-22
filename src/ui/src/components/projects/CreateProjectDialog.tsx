@@ -233,6 +233,13 @@ const copy = {
     researchPaperEnabledBody: 'Keep paper-oriented analysis and writing in scope. A strong run alone is not the endpoint.',
     researchPaperDisabled: 'Algorithm-first mode',
     researchPaperDisabledBody: 'Skip default paper drafting and keep iterating toward the strongest justified method.',
+    carefulModeLabel: 'Careful mode',
+    carefulModeHelp:
+      'Default off. When enabled, the system prompt gains a short addendum that asks the agent to pilot expensive runs before launching them, record a decision artifact before direction changes, and refresh status.md before new substantive actions. It also routes main experiments the agent itself flagged as refuted through analysis-campaign instead of going straight back to decision. Costs extra prompt tokens; recommended for compute-scarce or high-stakes quests.',
+    carefulModeEnabled: 'Careful mode on',
+    carefulModeEnabledBody: 'Inject the careful-mode addendum and route explicitly-refuted main runs to analysis-campaign. The agent decides what counts as an "expensive" run from the quest context; no fixed wall-clock or percentage threshold applies.',
+    carefulModeDisabled: 'Careful mode off',
+    carefulModeDisabledBody: 'Default behavior. Skills use their standard advisory language; regressions route to decision as before. Lower token overhead, good for exploratory or small-scale quests.',
     deliveryModeLabel: 'Delivery mode',
     languageLabel: 'User language',
     languageHelp: 'The launch instructions and later communication will prefer this language by default.',
@@ -622,6 +629,13 @@ const copy = {
     researchPaperEnabledBody: '保持论文导向的分析与写作流程。单次较强实验结果本身不构成终点。',
     researchPaperDisabled: '仅追求最佳算法',
     researchPaperDisabledBody: '默认不进入论文写作，重点持续迭代并追求更强、证据更扎实的方法结果。',
+    carefulModeLabel: '谨慎模式',
+    carefulModeHelp:
+      '默认关闭。开启后，系统提示词会追加一段附录：要求在启动昂贵完整运行前先跑 pilot、在方向变更前先记录 decision、在开始新重要动作前先刷新 status.md；同时把 agent 自己判定为 refuted 的主实验从 decision 改路由到 analysis-campaign。会增加 prompt token 开销，适合算力紧张或关键课题。',
+    carefulModeEnabled: '已开启',
+    carefulModeEnabledBody: '注入谨慎模式附录，明确 refuted 的主实验改路由到 analysis-campaign。"昂贵"由 agent 自行从任务上下文判断，系统不设固定阈值。',
+    carefulModeDisabled: '未开启',
+    carefulModeDisabledBody: '默认行为：skill 保持原有建议性语气，回归仍路由到 decision。token 开销最低，适合探索性或小规模任务。',
     deliveryModeLabel: '交付模式',
     languageLabel: '用户语言',
     languageHelp: '默认希望启动说明和后续交流优先使用的语言。',
@@ -1420,6 +1434,7 @@ function buildTutorialStartResearchExample(language: 'en' | 'zh'): Partial<Start
       review_followup_policy: 'audit_only',
       baseline_execution_policy: 'auto',
       manuscript_edit_mode: 'none',
+    careful_mode: { mode: 'off' },
       entry_state_summary: '',
       review_summary: '',
       review_materials: '',
@@ -1461,6 +1476,7 @@ function buildTutorialStartResearchExample(language: 'en' | 'zh'): Partial<Start
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    careful_mode: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -2464,6 +2480,7 @@ export function CreateProjectDialog({
       review_followup_policy: next.review_followup_policy,
       baseline_execution_policy: next.baseline_execution_policy,
       manuscript_edit_mode: next.manuscript_edit_mode,
+      careful_mode: next.careful_mode,
       entry_state_summary: next.entry_state_summary,
       review_summary: next.review_summary,
       review_materials: next.review_materials,
@@ -2550,6 +2567,7 @@ export function CreateProjectDialog({
       execution_start_mode: saved.execution_start_mode,
       baseline_acceptance_target: saved.baseline_acceptance_target,
       manuscript_edit_mode: effectiveManuscriptEditMode,
+      ...(saved.careful_mode?.mode === 'on' ? { careful_mode: saved.careful_mode } : {}),
       scope: derivedFields.scope,
       baseline_mode: derivedFields.baseline_mode,
       resource_policy: derivedFields.resource_policy,
@@ -3040,6 +3058,29 @@ export function CreateProjectDialog({
                     </div>
                   </InlineField>
                 ) : null}
+                <InlineField label={t.carefulModeLabel} help={t.carefulModeHelp} hint={t.carefulModeHelp}>
+                  <div className="rounded-[14px] border border-[rgba(45,42,38,0.08)] bg-white/70 px-3 py-3 dark:border-[rgba(45,42,38,0.08)] dark:bg-white/76">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-[rgba(38,36,33,0.95)] dark:text-[rgba(38,36,33,0.95)]">
+                          {form.careful_mode.mode === 'on' ? t.carefulModeEnabled : t.carefulModeDisabled}
+                        </div>
+                        <div className="mt-1 text-[11px] leading-5 text-[rgba(86,82,77,0.82)] dark:text-[rgba(86,82,77,0.82)]">
+                          {form.careful_mode.mode === 'on' ? t.carefulModeEnabledBody : t.carefulModeDisabledBody}
+                        </div>
+                      </div>
+                      <AnimatedCheckbox
+                        checked={form.careful_mode.mode === 'on'}
+                        onChange={(checked) =>
+                          setField('careful_mode', checked ? { mode: 'on' } : { mode: 'off' })
+                        }
+                        disabled={manualOverride}
+                        size="md"
+                        className="shrink-0"
+                      />
+                    </div>
+                  </div>
+                </InlineField>
                 <div className="rounded-[14px] border border-[rgba(45,42,38,0.08)] bg-[rgba(244,239,233,0.52)] px-3 py-3 dark:border-[rgba(45,42,38,0.08)] dark:bg-[rgba(244,239,233,0.62)]">
                   <div className="text-[11px] font-medium text-[rgba(75,73,69,0.78)] dark:text-[rgba(75,73,69,0.78)]">
                     {t.derivedPolicyTitle}

@@ -44,6 +44,11 @@ export type BaselineExecutionPolicy =
   | 'skip_unless_blocking'
 export type ManuscriptEditMode = 'none' | 'copy_ready_text' | 'latex_required'
 
+export type CarefulModeMode = 'off' | 'on'
+export type CarefulMode = {
+  mode: CarefulModeMode
+}
+
 export type StartResearchTemplate = {
   title: string
   quest_id: string
@@ -66,6 +71,7 @@ export type StartResearchTemplate = {
   review_followup_policy: ReviewFollowupPolicy
   baseline_execution_policy: BaselineExecutionPolicy
   manuscript_edit_mode: ManuscriptEditMode
+  careful_mode: CarefulMode
   entry_state_summary: string
   review_summary: string
   review_materials: string
@@ -189,6 +195,7 @@ export function defaultStartResearchTemplate(language: 'en' | 'zh'): StartResear
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    careful_mode: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -311,6 +318,7 @@ export function listReferenceStartResearchTemplates(): StartResearchTemplateEntr
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    careful_mode: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -364,6 +372,7 @@ export function listReferenceStartResearchTemplates(): StartResearchTemplateEntr
     review_followup_policy: 'audit_only',
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
+    careful_mode: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -529,6 +538,16 @@ function sanitizeManuscriptEditMode(value: unknown): ManuscriptEditMode {
   return 'none'
 }
 
+export function sanitizeCarefulMode(value: unknown): CarefulMode {
+  if (typeof value === 'string') {
+    const mode = value.trim().toLowerCase()
+    return { mode: mode === 'on' ? 'on' : 'off' }
+  }
+  const raw = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const modeRaw = String(raw.mode || '').trim().toLowerCase()
+  return { mode: modeRaw === 'on' ? 'on' : 'off' }
+}
+
 function sanitizeLines(text: string) {
   return text
     .split('\n')
@@ -590,6 +609,7 @@ function sanitizeTemplate(input: PersistedStartResearchTemplate): StartResearchT
     review_followup_policy: sanitizeReviewFollowupPolicy(input.review_followup_policy),
     baseline_execution_policy: sanitizeBaselineExecutionPolicy(input.baseline_execution_policy),
     manuscript_edit_mode: sanitizeManuscriptEditMode(input.manuscript_edit_mode),
+    careful_mode: sanitizeCarefulMode(input.careful_mode),
     entry_state_summary: String(input.entry_state_summary || '').trim(),
     review_summary: String(input.review_summary || '').trim(),
     review_materials: String(input.review_materials || '').trim(),
