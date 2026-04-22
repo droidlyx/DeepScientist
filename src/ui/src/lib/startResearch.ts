@@ -54,6 +54,11 @@ export type AuditPolicy = {
   runner?: AuditPolicyRunner
 }
 
+export type StrictModeMode = 'off' | 'on'
+export type StrictMode = {
+  mode: StrictModeMode
+}
+
 export type StartResearchTemplate = {
   title: string
   quest_id: string
@@ -77,6 +82,7 @@ export type StartResearchTemplate = {
   baseline_execution_policy: BaselineExecutionPolicy
   manuscript_edit_mode: ManuscriptEditMode
   audit_policy: AuditPolicy
+  strict_mode: StrictMode
   entry_state_summary: string
   review_summary: string
   review_materials: string
@@ -201,6 +207,7 @@ export function defaultStartResearchTemplate(language: 'en' | 'zh'): StartResear
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
     audit_policy: { mode: 'off' },
+    strict_mode: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -324,6 +331,7 @@ export function listReferenceStartResearchTemplates(): StartResearchTemplateEntr
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
     audit_policy: { mode: 'off' },
+    strict_mode: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -378,6 +386,7 @@ export function listReferenceStartResearchTemplates(): StartResearchTemplateEntr
     baseline_execution_policy: 'auto',
     manuscript_edit_mode: 'none',
     audit_policy: { mode: 'off' },
+    strict_mode: { mode: 'off' },
     entry_state_summary: '',
     review_summary: '',
     review_materials: '',
@@ -583,6 +592,16 @@ export function sanitizeAuditPolicy(value: unknown): AuditPolicy {
   return out
 }
 
+export function sanitizeStrictMode(value: unknown): StrictMode {
+  if (typeof value === 'string') {
+    const mode = value.trim().toLowerCase()
+    return { mode: mode === 'on' ? 'on' : 'off' }
+  }
+  const raw = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const modeRaw = String(raw.mode || '').trim().toLowerCase()
+  return { mode: modeRaw === 'on' ? 'on' : 'off' }
+}
+
 function sanitizeLines(text: string) {
   return text
     .split('\n')
@@ -645,6 +664,7 @@ function sanitizeTemplate(input: PersistedStartResearchTemplate): StartResearchT
     baseline_execution_policy: sanitizeBaselineExecutionPolicy(input.baseline_execution_policy),
     manuscript_edit_mode: sanitizeManuscriptEditMode(input.manuscript_edit_mode),
     audit_policy: sanitizeAuditPolicy(input.audit_policy),
+    strict_mode: sanitizeStrictMode(input.strict_mode),
     entry_state_summary: String(input.entry_state_summary || '').trim(),
     review_summary: String(input.review_summary || '').trim(),
     review_materials: String(input.review_materials || '').trim(),

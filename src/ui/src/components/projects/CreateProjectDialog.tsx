@@ -240,6 +240,13 @@ const copy = {
     auditPolicyEnabledBody: 'Route through audit-numbers after main experiment / paper bundle / baseline confirm. Audit failures are reported as advisory guidance and do not block the tool call.',
     auditPolicyDisabled: 'Audit off',
     auditPolicyDisabledBody: 'Do not schedule post-run numeric audits. Use this if the project is exploratory or the extra subprocess cost is not warranted.',
+    strictModeLabel: 'Strict process mode',
+    strictModeHelp:
+      'Default off. When enabled, the system prompt gains a short addendum asking the agent to pilot expensive runs before launching them, to record a decision artifact before direction changes, and to refresh status.md before new actions. It also routes explicitly-refuted main runs through analysis-campaign instead of going straight back to decision. Costs extra prompt tokens; recommended for compute-scarce or high-stakes quests.',
+    strictModeEnabled: 'Strict mode on',
+    strictModeEnabledBody: 'Inject the strict-mode addendum and route refuted main runs to analysis-campaign. The agent decides what counts as an "expensive" run from the quest context; there are no fixed thresholds.',
+    strictModeDisabled: 'Strict mode off',
+    strictModeDisabledBody: 'Default behavior. Skills use their standard advisory language; regressions route to decision as before. Lower token overhead, good for exploratory or small-scale quests.',
     deliveryModeLabel: 'Delivery mode',
     languageLabel: 'User language',
     languageHelp: 'The launch instructions and later communication will prefer this language by default.',
@@ -636,6 +643,13 @@ const copy = {
     auditPolicyEnabledBody: '主实验落盘 / 论文打包 / 基线确认时触发 audit-numbers 空上下文审计。审计失败会作为建议性路由反馈，不会阻塞工具调用本身。',
     auditPolicyDisabled: '未开启',
     auditPolicyDisabledBody: '不调度事后数字审计。适合探索性课题或对额外子进程开销敏感的场景。',
+    strictModeLabel: '严格流程模式',
+    strictModeHelp:
+      '默认关闭。开启后，系统提示词会追加一段附录：要求在启动昂贵完整运行前先跑 pilot、在方向变更前先记录 decision、在开始新动作前先刷新 status.md；同时把主实验 verdict=refuted 的路由从 decision 改为 analysis-campaign。会增加 prompt token 开销，适合算力紧张或关键课题。',
+    strictModeEnabled: '已开启',
+    strictModeEnabledBody: '注入严格模式附录，明确拒判（refuted）的主实验改路由到 analysis-campaign。"昂贵"由 agent 自行从任务上下文判断，系统不设固定阈值。',
+    strictModeDisabled: '未开启',
+    strictModeDisabledBody: '默认行为：skill 保持原有建议性语气，回归仍路由到 decision。token 开销最低，适合探索性或小规模任务。',
     deliveryModeLabel: '交付模式',
     languageLabel: '用户语言',
     languageHelp: '默认希望启动说明和后续交流优先使用的语言。',
@@ -1435,6 +1449,7 @@ function buildTutorialStartResearchExample(language: 'en' | 'zh'): Partial<Start
       baseline_execution_policy: 'auto',
       manuscript_edit_mode: 'none',
       audit_policy: { mode: 'off' },
+      strict_mode: { mode: 'off' },
       entry_state_summary: '',
       review_summary: '',
       review_materials: '',
@@ -2481,6 +2496,7 @@ export function CreateProjectDialog({
       baseline_execution_policy: next.baseline_execution_policy,
       manuscript_edit_mode: next.manuscript_edit_mode,
       audit_policy: next.audit_policy,
+      strict_mode: next.strict_mode,
       entry_state_summary: next.entry_state_summary,
       review_summary: next.review_summary,
       review_materials: next.review_materials,
@@ -2568,6 +2584,7 @@ export function CreateProjectDialog({
       baseline_acceptance_target: saved.baseline_acceptance_target,
       manuscript_edit_mode: effectiveManuscriptEditMode,
       ...(saved.audit_policy?.mode === 'advisory' ? { audit_policy: saved.audit_policy } : {}),
+      ...(saved.strict_mode?.mode === 'on' ? { strict_mode: saved.strict_mode } : {}),
       scope: derivedFields.scope,
       baseline_mode: derivedFields.baseline_mode,
       resource_policy: derivedFields.resource_policy,
@@ -3073,6 +3090,29 @@ export function CreateProjectDialog({
                         checked={form.audit_policy.mode === 'advisory'}
                         onChange={(checked) =>
                           setField('audit_policy', checked ? { mode: 'advisory' } : { mode: 'off' })
+                        }
+                        disabled={manualOverride}
+                        size="md"
+                        className="shrink-0"
+                      />
+                    </div>
+                  </div>
+                </InlineField>
+                <InlineField label={t.strictModeLabel} help={t.strictModeHelp} hint={t.strictModeHelp}>
+                  <div className="rounded-[14px] border border-[rgba(45,42,38,0.08)] bg-white/70 px-3 py-3 dark:border-[rgba(45,42,38,0.08)] dark:bg-white/76">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-[rgba(38,36,33,0.95)] dark:text-[rgba(38,36,33,0.95)]">
+                          {form.strict_mode.mode === 'on' ? t.strictModeEnabled : t.strictModeDisabled}
+                        </div>
+                        <div className="mt-1 text-[11px] leading-5 text-[rgba(86,82,77,0.82)] dark:text-[rgba(86,82,77,0.82)]">
+                          {form.strict_mode.mode === 'on' ? t.strictModeEnabledBody : t.strictModeDisabledBody}
+                        </div>
+                      </div>
+                      <AnimatedCheckbox
+                        checked={form.strict_mode.mode === 'on'}
+                        onChange={(checked) =>
+                          setField('strict_mode', checked ? { mode: 'on' } : { mode: 'off' })
                         }
                         disabled={manualOverride}
                         size="md"

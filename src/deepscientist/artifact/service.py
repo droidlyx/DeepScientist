@@ -6863,6 +6863,17 @@ class ArtifactService:
             guidance_vm = maybe_inject_audit_override(quest_root, record, guidance_vm)
         except Exception:
             pass
+        # Strict-mode regression routing: when the quest opted into strict_mode
+        # and the agent itself flagged this main run as refuted, route through
+        # `analysis-campaign` for one root-cause pass before the next full run.
+        try:
+            from .strict_mode import maybe_inject_strict_mode_regression_routing
+
+            guidance_vm = maybe_inject_strict_mode_regression_routing(
+                quest_root, record, guidance_vm
+            )
+        except Exception:
+            pass
         record["guidance_vm"] = guidance_vm
         guidance_text = guidance_summary(guidance_vm) or guidance_for_kind(record["kind"])
         recommended_skill = (

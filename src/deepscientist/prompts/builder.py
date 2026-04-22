@@ -64,6 +64,10 @@ STAGE_MEMORY_PLAN = {
         "quest": ("decisions", "knowledge", "episodes"),
         "global": ("knowledge", "templates"),
     },
+    "pilot": {
+        "quest": ("ideas", "decisions", "episodes", "knowledge"),
+        "global": ("knowledge", "templates"),
+    },
 }
 
 
@@ -274,6 +278,15 @@ class PromptBuilder:
                     "",
                     "## Connector Contract",
                     connector_contract_block,
+                ]
+            )
+        strict_mode_block = self._strict_mode_block(quest_root=quest_root)
+        if strict_mode_block:
+            sections.extend(
+                [
+                    "",
+                    "## Strict Mode",
+                    strict_mode_block,
                 ]
             )
         sections.extend(
@@ -560,6 +573,27 @@ class PromptBuilder:
         if not path.exists():
             return ""
         return self._markdown_body(path)
+
+    def _strict_mode_block(self, *, quest_root: Path) -> str:
+        """Return the strict-mode addendum text iff the quest opted in.
+
+        When ``startup_contract.strict_mode.mode`` is ``"on"``, inject the
+        addendum that carries pilot expectations, direction-change and
+        status-freshness rules, and the rationalizations table. When the
+        flag is ``"off"`` (the default) this method returns an empty
+        string so strict-mode text never appears in the system prompt.
+        """
+
+        try:
+            from ..artifact.strict_mode import is_strict_mode_on
+        except Exception:
+            return ""
+        if not is_strict_mode_on(quest_root):
+            return ""
+        return self._prompt_fragment(
+            Path("strict_mode_addendum.md"),
+            quest_root=quest_root,
+        )
 
     def _local_runtime_hardware_block(self, *, runtime_config: dict) -> str:
         hardware = runtime_config.get("hardware") if isinstance(runtime_config.get("hardware"), dict) else {}
